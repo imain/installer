@@ -66,10 +66,10 @@ data "openstack_networking_network_v2" "external_network" {
   external = true
 }
 
-resource "openstack_networking_floatingip_v2" "lb_fip" {
-  pool    = "${var.external_network}"
-  port_id = "${openstack_networking_port_v2.lb_port.id}"
-}
+#resource "openstack_networking_floatingip_v2" "lb_fip" {
+#  pool    = "${var.external_network}"
+#  port_id = "${openstack_networking_port_v2.lb_port.id}"
+#}
 
 resource "openstack_networking_router_v2" "openshift-external-router" {
   name                = "openshift-external-router"
@@ -81,4 +81,66 @@ resource "openstack_networking_router_v2" "openshift-external-router" {
 resource "openstack_networking_router_interface_v2" "nodes_router_interface" {
   router_id = "${openstack_networking_router_v2.openshift-external-router.id}"
   subnet_id = "${openstack_networking_subnet_v2.nodes.id}"
+}
+
+resource "openstack_lb_loadbalancer_v2" "internal_loadbalancer" {
+  name = "internal_loadbalancer"
+  description = "A loadbalancer that handles requests from within the cluster only"
+  vip_subnet_id = "${openstack_networking_subnet_v2.nodes.id}"
+}
+
+resource "openstack_lb_listener_v2" "http_listener"{
+  protocol = "HTTP"
+  protocol_port = 80
+  loadbalancer_id = "${openstack_lb_loadbalancer_v2.internal_loadbalancer.id}"
+}
+
+resource "openstack_lb_listener_v2" "https_listener"{
+  protocol = "HTTPS"
+  protocol_port = 443
+  loadbalancer_id = "${openstack_lb_loadbalancer_v2.internal_loadbalancer.id}"
+}
+
+resource "openstack_lb_listener_v2" "ignition_listener"{
+  protocol = "TCP"
+  protocol_port = 49500
+  loadbalancer_id = "${openstack_lb_loadbalancer_v2.internal_loadbalancer.id}"
+}
+
+resource "openstack_lb_listener_v2" "api_listener"{
+  protocol = "HTTPS"
+  protocol_port = 6443
+  loadbalancer_id = "${openstack_lb_loadbalancer_v2.internal_loadbalancer.id}"
+}
+
+resource "openstack_lb_pool_v2" "http_pool"{
+  protocol = "HTTP"
+  lb_method   = "ROUND_ROBIN"
+  listener_id = "${openstack_lb_listener_v2.http_listener.id}"
+}
+
+resource "openstack_lb_pool_v2" "https_pool"{
+  protocol = "HTTPS"
+  lb_method   = "ROUND_ROBIN"
+  listener_id = "${openstack_lb_listener_v2.https_listener.id}"
+}
+
+resource "openstack_lb_pool_v2" "ignition_pool"{
+  protocol = "TCP"
+  lb_method   = "ROUND_ROBIN"
+  listener_id = "${openstack_lb_listener_v2.ignition_listener.id}"
+}
+
+resource "openstack_lb_pool_v2" "api_pool"{
+  protocol = "HTTPS"
+  lb_method   = "ROUND_ROBIN"
+  listener_id = "${openstack_lb_listener_v2.api_listener.id}"
+}
+
+resource "openstack_lb_member_v2" "http_member"{
+  count = "${var.masters_count}"
+  address = "${var.master_ips[count.index]}"
+  protocol_port = "80"
+  subnet_id = "${openstack_networking_subnet_v2.nodes.id}"
+  pool_id = "${openstack_lb_pool_v2.http_pool.id}"
 }

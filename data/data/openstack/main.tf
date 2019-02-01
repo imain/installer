@@ -76,6 +76,7 @@ module "topology" {
   external_network = "${var.openstack_external_network}"
   masters_count    = "${var.master_count}"
   trunk_support    = "${var.openstack_trunk_support}"
+  master_ips       = "${module.topology.master_ips}"
 }
 
 resource "openstack_objectstorage_container_v1" "container" {

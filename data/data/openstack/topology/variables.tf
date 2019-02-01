@@ -23,3 +23,7 @@ variable "masters_count" {
 variable "trunk_support" {
   type = "string"
 }
+
+variable "master_ips" {
+  type = "list"
+}
