@@ -12,6 +12,7 @@ import (
 
 	"github.com/openshift/installer/pkg/asset"
 	"github.com/openshift/installer/pkg/asset/cluster/aws"
+	"github.com/openshift/installer/pkg/asset/cluster/baremetal"
 	"github.com/openshift/installer/pkg/asset/installconfig"
 	"github.com/openshift/installer/pkg/asset/password"
 	"github.com/openshift/installer/pkg/metrics/timer"
@@ -105,6 +106,12 @@ func (c *Cluster) Generate(parents asset.Parents) (err error) {
 		err = err2
 	} else {
 		logrus.Errorf("Failed to read tfstate: %v", err2)
+	}
+
+	if installConfig.Config.Platform.BareMetal != nil {
+		if err := baremetal.PostTerraform(context.TODO(), stateFile, clusterID.InfraID, installConfig); err != nil {
+			return err
+		}
 	}
 
 	timer.StopTimer("Infrastructure")
